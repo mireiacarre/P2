@@ -1,0 +1,3 @@
+project('P2','C')
+executable('vad',sources:['src/main_vad.c])
+e

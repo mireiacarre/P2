@@ -3,7 +3,7 @@
 
 float compute_power(const float *x, unsigned int N) {
     float power = 0;
-    int i;
+    int i=0;
     for(i=0;i<N;i++){
         power += (x[i]*x[i]);
     }

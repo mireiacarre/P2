@@ -1,7 +1,7 @@
 #include <math.h>
 #include <stdlib.h>
 #include <stdio.h>
-
+#include "pav_analysis.h"
 #include "vad.h"
 #include "pav_analysis.h"
 
@@ -44,7 +44,6 @@ Features compute_features(const float *x, int N) {
    */
   Features feat;
   feat.p = compute_power(x, N);
-  /*feat.zcr = feat.p = feat.am = (float) rand()/RAND_MAX;*/
   return feat;
 }
 
@@ -79,7 +78,7 @@ unsigned int vad_frame_size(VAD_DATA *vad_data) {
  * using a Finite State Automata
  */
 
-VAD_STATE vad(VAD_DATA *vad_data, float *x) {
+VAD_STATE vad(VAD_DATA *vad_data, float *x, float alfa1) {
 
   /* 
    * TODO: You can change this, using your own features,
@@ -91,16 +90,17 @@ VAD_STATE vad(VAD_DATA *vad_data, float *x) {
 
   switch (vad_data->state) {
   case ST_INIT:
+    vad_data->p0 = f.p;   //guardamos la potencia inicial.
     vad_data->state = ST_SILENCE;
     break;
 
   case ST_SILENCE:
-    if (f.p > -40)
+    if (f.p > vad_data->p0 + alfa1)
       vad_data->state = ST_VOICE;
     break;
 
   case ST_VOICE:
-    if (f.p < -40)
+    if (f.p < vad_data->p0 + alfa1)
       vad_data->state = ST_SILENCE;
     break;
 
