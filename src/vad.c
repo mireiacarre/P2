@@ -33,17 +33,11 @@ typedef struct {
  */
 
 Features compute_features(const float *x, int N) {
-  /*
-   * Input: x[i] : i=0 .... N-1 
-   * Ouput: computed features
-   */
-  /* 
-   * DELETE and include a call to your own functions
-   *
-   * For the moment, compute random value between 0 and 1 
-   */
+
   Features feat;
   feat.p = compute_power(x, N);
+  feat.am = compute_am(x,N);
+  feat.zcr = compute_zcr(x,N,16000);
   return feat;
 }
 
@@ -51,11 +45,18 @@ Features compute_features(const float *x, int N) {
  * TODO: Init the values of vad_data
  */
 
-VAD_DATA * vad_open(float rate) {
+VAD_DATA * vad_open(float rate, float alfa1, float alfa2) {
   VAD_DATA *vad_data = malloc(sizeof(VAD_DATA));
   vad_data->state = ST_INIT;
   vad_data->sampling_rate = rate;
   vad_data->frame_length = rate * FRAME_TIME * 1e-3;
+  vad_data->alfa1 = alfa1;
+  vad_data->alfa2 = alfa2;
+  vad_data->last_state = ST_UNDEF;
+  /*vad_data->MIN_VOICE = 30;
+  vad_data->MIN_SILENCE = 10;*/
+  vad_data->Ntramas = 3;
+
   return vad_data;
 }
 
@@ -63,8 +64,12 @@ VAD_STATE vad_close(VAD_DATA *vad_data) {
   /* 
    * TODO: decide what to do with the last undecided frames
    */
-  VAD_STATE state = vad_data->state;
-
+  VAD_STATE state;
+  if(vad_data->state == ST_SILENCE || vad_data->state == ST_VOICE){
+    state = vad_data->state;
+  } else {
+    state = ST_SILENCE;
+  }
   free(vad_data);
   return state;
 }
@@ -78,7 +83,7 @@ unsigned int vad_frame_size(VAD_DATA *vad_data) {
  * using a Finite State Automata
  */
 
-VAD_STATE vad(VAD_DATA *vad_data, float *x, float alfa1) {
+VAD_STATE vad(VAD_DATA *vad_data, float *x) {
 
   /* 
    * TODO: You can change this, using your own features,
@@ -91,28 +96,64 @@ VAD_STATE vad(VAD_DATA *vad_data, float *x, float alfa1) {
   switch (vad_data->state) {
   case ST_INIT:
     vad_data->p0 = f.p;   //guardamos la potencia inicial.
+    vad_data->k1 = vad_data->p0 + vad_data->alfa1;
+    vad_data->k2 = vad_data->p0 + vad_data->alfa2;
     vad_data->state = ST_SILENCE;
-    break;
+  break;
 
   case ST_SILENCE:
-    if (f.p > vad_data->p0 + alfa1)
-      vad_data->state = ST_VOICE;
-    break;
+    if (f.p > vad_data->k2){
+      vad_data->state = ST_MVOICE;
+    } else if(f.p > vad_data->k1){
+      vad_data->state = ST_MSILENCE;
+      vad_data->Ntramas --;
+    }
+    vad_data->last_state = ST_SILENCE;
+  break;
 
   case ST_VOICE:
-    if (f.p < vad_data->p0 + alfa1)
+    if (f.p < vad_data->k1){
+      vad_data->state = ST_MSILENCE;
+    } else if (f.p < vad_data->k2){
+      vad_data->state = ST_MVOICE;
+    }
+     vad_data->last_state = ST_VOICE;
+  break;
+
+  case ST_MVOICE:
+    if(f.p > vad_data->k2){
+      vad_data->state = ST_VOICE;
+    } else if((f.p < vad_data->k1)||(vad_data->Ntramas == 0)){
       vad_data->state = ST_SILENCE;
-    break;
+      vad_data->Ntramas = 3;
+    } else{
+      vad_data->Ntramas--;
+    }
+    vad_data->last_state = ST_MVOICE;
+  break;
+
+  case ST_MSILENCE:
+    if ((f.p > vad_data->k2)||(vad_data->Ntramas == 0)){
+      vad_data->state = ST_VOICE;
+      vad_data->Ntramas = 3;
+    } else if(f.p < vad_data->k1){
+      vad_data->state = ST_SILENCE;
+    } else {
+      vad_data->Ntramas--;
+    }
+    vad_data->last_state = ST_MSILENCE;
+  break;
 
   case ST_UNDEF:
-    break;
+  break;
   }
 
-  if (vad_data->state == ST_SILENCE ||
-      vad_data->state == ST_VOICE)
-    return vad_data->state;
-  else
-    return ST_UNDEF;
+if ((vad_data->state == ST_SILENCE) || (vad_data->state == ST_MVOICE)){
+  return ST_SILENCE;
+} else if ((vad_data->state == ST_VOICE) || (vad_data->state == ST_MSILENCE)){
+  return ST_VOICE;
+} else
+  return ST_UNDEF;
 }
 
 void vad_show_state(const VAD_DATA *vad_data, FILE *out) {
