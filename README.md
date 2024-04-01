@@ -136,32 +136,43 @@ Ejercicios
   continuación, una captura de `wavesurfer` en la que se vea con claridad la señal temporal, el contorno de
   potencia y la tasa de cruces por cero, junto con el etiquetado manual de los segmentos.
 
+![Wavesurfer](img/wavesurfer.png)
 
 - A la vista de la gráfica, indique qué valores considera adecuados para las magnitudes siguientes:
 
 	* Incremento del nivel potencia en dB, respecto al nivel correspondiente al silencio inicial, para
-	  estar seguros de que un segmento de señal se corresponde con voz.
+	  estar seguros de que un segmento de señal se corresponde con voz: 
+	  Como podemos ver en la imagen que hemos adjuntado la representación de la potencia del señal tiene como máximo 30dBs (aproxidamente), pero para estar seguros de que se trata de voz necesitamos un incremento de 20dBs. 
 
 	* Duración mínima razonable de los segmentos de voz y silencio.
+	Para la voz nos hemos orientado en el "no" de la primera frase y hemos decidido que los tramos de voz como mínimo tienen que ser de 300ms.
+	Para el silencio, en cambio, hemos escogido los 200ms guiándonos por los cortos silencios producidos en el lenguaje.
 
 	* ¿Es capaz de sacar alguna conclusión a partir de la evolución de la tasa de cruces por cero?
-
+	La tasa de zcr no nos ofrece demasiada información útil por separado pero si que nos puede ayudar a detectar más detalladamente los cambios del señal.
 
 ### Desarrollo del detector de actividad vocal
 
 - Complete el código de los ficheros de la práctica para implementar un detector de actividad vocal en
   tiempo real tan exacto como sea posible. Tome como objetivo la maximización de la puntuación-F `TOTAL`.
+![TOTAL](img/fscore.png)
 
-- Inserte una gráfica en la que se vea con claridad la señal temporal, el etiquetado manual y la detección
-  automática conseguida para el fichero grabado al efecto. 
+- Inserte una gráfica en la que se vea con claridad la señal temporal, el etiquetado manual y la detección automática conseguida para el fichero grabado al efecto. 
+Nos hemos encontrado con dificultades al intentar analizar el fichero de audio grabado por nosotras. Creemos que este problema se debe a que el microfono del ordenador con el que lo hemos grabado no ha captado la diferencia de potencia entre sonido y silencio. Por lo taanto hemos usado el fichero prueba.wav y hemos generado nuevamente el fichero prueba.vad.
+
+![TOTAL](img/transcripciones.png)
+
+Para obtener este resultado hemos tenido que aumentar alfa1 hasta llegar a 15 pese a que el resultado óptimo en el apartado anterior lo encontrabamos con ambas alfas igual a 5. 
 
 - Explique, si existen. las discrepancias entre el etiquetado manual y la detección automática.
+Podemos ver que, pese a haber obtenido un resultado muy parecido al deseado, no es exactamente igual. Hay uos leves retardos respecto a la transcripción manual que creemos que se deben a que el programa tiene un margen para tomar la decisión de en que estado se encuentra.
 
 - Evalúe los resultados sobre la base de datos `db.v4` con el script `vad_evaluation.pl` e inserte a 
   continuación las tasas de sensibilidad (*recall*) y precisión para el conjunto de la base de datos (sólo
   el resumen).
+![SEMSIBILIDAD Y PRECISIÓN ALFA1 = 5](img/vad_evaluation.png)
 
-
+Pese a obtener una fscore de casi 100% en prueb.lab con alfa1=15, preferiimos mantenerla a 5 para obteenr un mejor resultado total.
 ### Trabajos de ampliación
 
 #### Cancelación del ruido en los segmentos de silencio

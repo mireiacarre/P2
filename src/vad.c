@@ -53,9 +53,9 @@ VAD_DATA * vad_open(float rate, float alfa1, float alfa2) {
   vad_data->alfa1 = alfa1;
   vad_data->alfa2 = alfa2;
   vad_data->last_state = ST_UNDEF;
-  /*vad_data->MIN_VOICE = 30;
-  vad_data->MIN_SILENCE = 10;*/
-  vad_data->Ntramas = 3;
+  vad_data->k0 = 0;
+  vad_data->Ninit = 1;
+  vad_data->contador = 0;
 
   return vad_data;
 }
@@ -96,50 +96,48 @@ VAD_STATE vad(VAD_DATA *vad_data, float *x) {
   switch (vad_data->state) {
   case ST_INIT:
     vad_data->p0 = f.p;   //guardamos la potencia inicial.
+    //vad_data->k0=10*log10(vad_data->k0+pow(10,(vad_data->p0/10))/vad_data->Ninit); //lo óptimo es usar una trama: Ninit = 1. Por lo tanto, k0 = p0.
     vad_data->k1 = vad_data->p0 + vad_data->alfa1;
-    vad_data->k2 = vad_data->p0 + vad_data->alfa2;
+    vad_data->k2 = vad_data->k1 + vad_data->alfa2;
     vad_data->state = ST_SILENCE;
   break;
 
   case ST_SILENCE:
-    if (f.p > vad_data->k2){
+    if (f.p > vad_data->k1){
       vad_data->state = ST_MVOICE;
-    } else if(f.p > vad_data->k1){
-      vad_data->state = ST_MSILENCE;
-      vad_data->Ntramas --;
-    }
+      }
     vad_data->last_state = ST_SILENCE;
   break;
 
   case ST_VOICE:
     if (f.p < vad_data->k1){
       vad_data->state = ST_MSILENCE;
-    } else if (f.p < vad_data->k2){
-      vad_data->state = ST_MVOICE;
-    }
-     vad_data->last_state = ST_VOICE;
+    } 
+    vad_data->last_state = ST_VOICE;
   break;
 
   case ST_MVOICE:
     if(f.p > vad_data->k2){
       vad_data->state = ST_VOICE;
-    } else if((f.p < vad_data->k1)||(vad_data->Ntramas == 0)){
+      vad_data->contador = 0;
+    } else if(vad_data->contador >= 70){
       vad_data->state = ST_SILENCE;
-      vad_data->Ntramas = 3;
+      vad_data->contador = 0;
     } else{
-      vad_data->Ntramas--;
+      vad_data->contador ++;
     }
     vad_data->last_state = ST_MVOICE;
   break;
 
   case ST_MSILENCE:
-    if ((f.p > vad_data->k2)||(vad_data->Ntramas == 0)){
+    if (f.p > vad_data->k2){
       vad_data->state = ST_VOICE;
-      vad_data->Ntramas = 3;
-    } else if(f.p < vad_data->k1){
+      vad_data->contador = 0;
+    } else if((f.p < vad_data->k1) && (vad_data->contador >=8)){
       vad_data->state = ST_SILENCE;
+      vad_data->contador = 0;
     } else {
-      vad_data->Ntramas--;
+      vad_data->contador++;
     }
     vad_data->last_state = ST_MSILENCE;
   break;
@@ -155,6 +153,14 @@ if ((vad_data->state == ST_SILENCE) || (vad_data->state == ST_MVOICE)){
 } else
   return ST_UNDEF;
 }
+
+/*if (vad_data->state == ST_SILENCE ||vad_data->state == ST_VOICE){
+    return vad_data->state;
+  } else if (vad_data->state == ST_INIT){
+    return ST_SILENCE;
+  } else {
+    return ST_UNDEF;
+  }*/
 
 void vad_show_state(const VAD_DATA *vad_data, FILE *out) {
   fprintf(out, "%d\t%f\n", vad_data->state, vad_data->last_feature);

@@ -19,9 +19,11 @@ typedef struct {
   float p0;
   float alfa1;
   float alfa2;
+  float k0;
   float k1;
   float k2;
-  int Ntramas;
+  int contador;
+  int Ninit;
   VAD_STATE last_state;
 } VAD_DATA;
 
